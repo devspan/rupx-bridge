@@ -1,5 +1,5 @@
 export const BRIDGE_ADDRESSES = {
-  799: "0x27e2dF832F5554f42a38f2DF8e7F77cEeF6dBe75", // Rupaya testnet
+  799: "0xc65Cf1Eed90d1325Af6a4ACda756f335f8d65047", // Rupaya testnet
   97: "0x0000000000000000000000000000000000000000"  // Placeholder for Binance testnet (to be deployed)
 }
 

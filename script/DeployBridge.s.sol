@@ -9,6 +9,7 @@ contract DeployBridge is Script {
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         address tokenAddress = vm.envAddress("TOKEN_ADDRESS");
+        uint256 fee = 1 ether;  // Set your desired fee here
 
         vm.startBroadcast(deployerPrivateKey);
 
@@ -19,8 +20,8 @@ contract DeployBridge is Script {
             console.log("BridgeToken deployed at:", tokenAddress);
         }
 
-        // Deploy Bridge
-        Bridge bridge = new Bridge(tokenAddress);
+        // Deploy Bridge with fee parameter
+        Bridge bridge = new Bridge(tokenAddress, fee);
         console.log("Bridge deployed at:", address(bridge));
 
         vm.stopBroadcast();

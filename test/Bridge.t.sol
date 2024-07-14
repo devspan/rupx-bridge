@@ -3,58 +3,65 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import "../contracts/Bridge.sol";
-import "../contracts/BridgeToken.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "forge-std/Signature.sol";
 
 contract BridgeTest is Test {
-    Bridge public bridge;
-    BridgeToken public token;
-    address public owner;
-    address public user;
-    uint256 private ownerPrivateKey;
+    Bridge bridge;
+    ERC20Mock token;
+    address owner = address(this);
+    address user = address(2);
+    uint256 initialBalance = 100 ether;
+    uint256 fee = 1 ether;
 
     function setUp() public {
-        ownerPrivateKey = 0xA11CE;  // Replace with a actual private key for testing
-        owner = vm.addr(ownerPrivateKey);
-        user = address(0x1);
-        token = new BridgeToken("Bridge Token", "BT", 1000000 * 10**18);
-        vm.prank(owner);
-        bridge = new Bridge(address(token));
-        token.transfer(user, 1000 * 10**18);
+        token = new ERC20Mock("Mock Token", "MKT");
+        token.mint(user, initialBalance);
+        bridge = new Bridge(address(token), fee);
     }
 
     function testLockTokens() public {
-        vm.startPrank(user);
-        token.approve(address(bridge), 100 * 10**18);
-        bridge.lockTokens(100 * 10**18);
-        vm.stopPrank();
-
-        assertEq(token.balanceOf(address(bridge)), 100 * 10**18);
-        assertEq(token.balanceOf(user), 900 * 10**18);
+        uint256 lockAmount = 100 ether;
+        uint256 expectedAmountAfterFee = lockAmount - fee;
+        vm.prank(user);
+        token.approve(address(bridge), lockAmount);
+        vm.prank(user);
+        bridge.lockTokens(lockAmount);
+        assertEq(token.balanceOf(user), initialBalance - lockAmount);
+        assertEq(token.balanceOf(address(bridge)), expectedAmountAfterFee);
+        assertEq(token.balanceOf(owner), fee);
     }
 
     function testUnlockTokens() public {
-        uint256 nonce = 0;
-        uint256 amount = 100 * 10**18;
-        address recipient = address(0x2);
+        uint256 lockAmount = 100 ether;
+        uint256 unlockAmount = 50 ether;
 
         // Lock tokens first
-        vm.startPrank(user);
-        token.approve(address(bridge), amount);
-        bridge.lockTokens(amount);
-        vm.stopPrank();
+        vm.prank(user);
+        token.approve(address(bridge), lockAmount);
+        vm.prank(user);
+        bridge.lockTokens(lockAmount);
 
-        // Create the message hash
-        bytes32 messageHash = keccak256(abi.encodePacked(recipient, amount, nonce, address(bridge)));
+        // Generate a valid signature
+        bytes32 messageHash = keccak256(abi.encodePacked(user, unlockAmount, bridge.nonce() - 1, address(bridge)));
         bytes32 prefixedHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
-
-        // Sign the message
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerPrivateKey, prefixedHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(uint256(uint160(owner)), prefixedHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
         // Unlock tokens
         vm.prank(owner);
-        bridge.unlockTokens(recipient, amount, nonce, signature);
+        bridge.unlockTokens(user, unlockAmount, bridge.nonce() - 1, signature);
 
-        assertEq(token.balanceOf(recipient), amount);
+        assertEq(token.balanceOf(user), initialBalance - lockAmount + unlockAmount);
+        assertEq(token.balanceOf(address(bridge)), lockAmount - unlockAmount - fee);
+    }
+}
+
+// Mock ERC20 token for testing purposes
+contract ERC20Mock is ERC20 {
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+
+    function mint(address to, uint256 amount) external {
+        _mint(to, amount);
     }
 }

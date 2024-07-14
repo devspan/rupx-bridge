@@ -1,42 +1,72 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.19;
+const { expect } = require("chai");
+const { ethers } = require("hardhat");
 
-import "forge-std/Test.sol";
-import "../src/BridgeToken.sol";
+describe("Bridge", function () {
+  let Bridge, bridge, Token, token;
+  let owner, user;
+  const initialSupply = ethers.utils.parseEther("1000000");
+  const lockAmount = ethers.utils.parseEther("100");
+  const fee = ethers.utils.parseEther("1");
 
-contract BridgeTokenTest is Test {
-    ::BRIDGE_TOKEN:: public bridgeToken;
-    address public owner;
-    address public user1;
-    address public user2;
+  beforeEach(async function () {
+    [owner, user] = await ethers.getSigners();
+    Token = await ethers.getContractFactory("ERC20");
+    token = await Token.deploy("Test Token", "TST", initialSupply);
+    await token.deployed();
 
-    function setUp() public {
-        owner = address(this);
-        user1 = address(0x1);
-        user2 = address(0x2);
-        bridgeToken = new ::BRIDGE_TOKEN::("Bridge Token", "BT", 1000000 * 10**18);
-    }
+    Bridge = await ethers.getContractFactory("Bridge");
+    bridge = await Bridge.deploy(token.address, fee);
+    await bridge.deployed();
 
-    function testInitialSupply() public {
-        assertEq(bridgeToken.totalSupply(), 1000000 * 10**18);
-        assertEq(bridgeToken.balanceOf(owner), 1000000 * 10**18);
-    }
+    await token.approve(bridge.address, initialSupply);
+  });
 
-    function testTransfer() public {
-        bridgeToken.transfer(user1, 100);
-        assertEq(bridgeToken.balanceOf(user1), 100);
-        
-        vm.prank(user1);
-        bridgeToken.transfer(user2, 50);
-        assertEq(bridgeToken.balanceOf(user1), 50);
-        assertEq(bridgeToken.balanceOf(user2), 50);
-    }
+  it("should lock tokens", async function () {
+    await token.connect(user).mint(lockAmount.add(fee));
+    await token.connect(user).approve(bridge.address, lockAmount.add(fee));
 
-    function testName() public {
-        assertEq(bridgeToken.name(), "Bridge Token");
-    }
+    const nonce = await bridge.nonce();
+    await bridge.connect(user).lockTokens(lockAmount);
+    expect(await token.balanceOf(bridge.address)).to.equal(lockAmount);
+    expect(await token.balanceOf(owner.address)).to.equal(fee);
+    expect(await bridge.nonce()).to.equal(nonce.add(1));
+  });
 
-    function testSymbol() public {
-        assertEq(bridgeToken.symbol(), "BT");
-    }
-}
+  it("should unlock tokens", async function () {
+    await token.connect(user).mint(lockAmount.add(fee));
+    await token.connect(user).approve(bridge.address, lockAmount.add(fee));
+
+    await bridge.connect(user).lockTokens(lockAmount);
+
+    const nonce = (await bridge.nonce()).sub(1);
+    const messageHash = ethers.utils.solidityKeccak256(
+      ["address", "uint256", "uint256", "address"],
+      [user.address, lockAmount, nonce, bridge.address]
+    );
+    const prefixedHash = ethers.utils.solidityKeccak256(
+      ["string", "bytes32"],
+      ["\x19Ethereum Signed Message:\n32", messageHash]
+    );
+    const signature = await owner.signMessage(ethers.utils.arrayify(prefixedHash));
+
+    await bridge.connect(owner).unlockTokens(user.address, lockAmount, nonce, signature);
+    expect(await token.balanceOf(user.address)).to.equal(lockAmount);
+  });
+
+  it("should update fee", async function () {
+    const newFee = ethers.utils.parseEther("2");
+    await bridge.connect(owner).updateFee(newFee);
+    expect(await bridge.fee()).to.equal(newFee);
+  });
+
+  it("should allow emergency withdraw", async function () {
+    const withdrawAmount = ethers.utils.parseEther("50");
+    await token.connect(user).mint(lockAmount.add(fee));
+    await token.connect(user).approve(bridge.address, lockAmount.add(fee));
+
+    await bridge.connect(user).lockTokens(lockAmount);
+
+    await bridge.connect(owner).emergencyWithdraw(withdrawAmount);
+    expect(await token.balanceOf(owner.address)).to.equal(withdrawAmount.add(fee));
+  });
+});
