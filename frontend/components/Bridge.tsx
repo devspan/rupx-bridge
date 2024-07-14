@@ -1,17 +1,62 @@
 "use client"
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { ethers } from 'ethers'
 import { useWeb3 } from '../contexts/Web3Context';
 import { CHAIN_NAMES } from '../config/web3';
+import { BRIDGE_ABI, BRIDGE_ADDRESSES, TOKEN_ABI, TOKEN_ADDRESSES } from '../config/bridge'
 
 const Bridge: React.FC = () => {
   const { account, chainId, connect, disconnect } = useWeb3();
   const [amount, setAmount] = useState<string>('');
   const [targetChain, setTargetChain] = useState<string>('');
+  const [isApproved, setIsApproved] = useState(false);
 
-  const handleTransfer = () => {
-    // TODO: Implement transfer logic
-    console.log(`Transferring ${amount} to ${targetChain}`);
+  useEffect(() => {
+    checkAllowance();
+  }, [account, chainId, amount]);
+
+  const checkAllowance = async () => {
+    if (!account || !chainId || !amount) return;
+    
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const tokenContract = new ethers.Contract(TOKEN_ADDRESSES[chainId], TOKEN_ABI, signer);
+    
+    const allowance = await tokenContract.allowance(account, BRIDGE_ADDRESSES[chainId]);
+    setIsApproved(allowance.gte(ethers.utils.parseEther(amount)));
+  };
+
+  const handleApprove = async () => {
+    if (!account || !chainId) return;
+    
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const tokenContract = new ethers.Contract(TOKEN_ADDRESSES[chainId], TOKEN_ABI, signer);
+    
+    try {
+      const tx = await tokenContract.approve(BRIDGE_ADDRESSES[chainId], ethers.constants.MaxUint256);
+      await tx.wait();
+      setIsApproved(true);
+    } catch (error) {
+      console.error('Approval failed:', error);
+    }
+  };
+
+  const handleTransfer = async () => {
+    if (!account || !chainId || !isApproved) return;
+    
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const bridgeContract = new ethers.Contract(BRIDGE_ADDRESSES[chainId], BRIDGE_ABI, signer);
+    
+    try {
+      const tx = await bridgeContract.lockTokens(ethers.utils.parseEther(amount));
+      await tx.wait();
+      console.log(`Transferred ${amount} to ${targetChain}`);
+    } catch (error) {
+      console.error('Transfer failed:', error);
+    }
   };
 
   return (
@@ -49,12 +94,21 @@ const Bridge: React.FC = () => {
             <option value="binance">Binance Testnet</option>
             <option value="rupaya">Rupaya Testnet</option>
           </select>
-          <button
-            onClick={handleTransfer}
-            className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition duration-300"
-          >
-            Transfer
-          </button>
+          {!isApproved ? (
+            <button
+              onClick={handleApprove}
+              className="w-full p-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition duration-300"
+            >
+              Approve
+            </button>
+          ) : (
+            <button
+              onClick={handleTransfer}
+              className="w-full p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition duration-300"
+            >
+              Transfer
+            </button>
+          )}
         </div>
       ) : (
         <button
