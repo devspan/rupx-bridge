@@ -1,26 +1,19 @@
-// config/bridge.ts
+export const BRIDGE_ADDRESSES = {
+  799: "0x27e2dF832F5554f42a38f2DF8e7F77cEeF6dBe75", // Rupaya testnet
+  97: "0x0000000000000000000000000000000000000000"  // Placeholder for Binance testnet (to be deployed)
+}
 
-import { ethers } from 'ethers';
+export const TOKEN_ADDRESSES = {
+  799: "0x65315Cf4B3A4D45076Fa0e8735874f581Ab066BD", // Replace with the actual deployed token address on Rupaya testnet
+  97: "0x0000000000000000000000000000000000000000"  // Placeholder for Binance testnet (to be deployed)
+}
 
-export const BRIDGE_ABI: ethers.ContractInterface = [
-  "function lockTokens(uint256 amount) external",
-  "function unlockTokens(address to, uint256 amount, uint256 nonce, bytes memory signature) external",
-  "event TokensLocked(address indexed from, uint256 amount, uint256 nonce)",
-  "event TokensUnlocked(address indexed to, uint256 amount, uint256 nonce)"
-];
+export const CHAIN_IDS = {
+  RUPAYA_TESTNET: 799,
+  BINANCE_TESTNET: 97
+}
 
-export const BRIDGE_ADDRESSES: { [key: number]: string } = {
-  799: "0x...", // Replace with actual Rupaya testnet bridge address
-  97: "0x..."  // Replace with actual Binance testnet bridge address
-};
-
-export const TOKEN_ABI: ethers.ContractInterface = [
-  "function approve(address spender, uint256 amount) external returns (bool)",
-  "function allowance(address owner, address spender) external view returns (uint256)",
-  "function balanceOf(address account) external view returns (uint256)"
-];
-
-export const TOKEN_ADDRESSES: { [key: number]: string } = {
-  799: "0x...", // Replace with actual Rupaya testnet token address
-  97: "0x..."  // Replace with actual Binance testnet token address
-};
+export const RPC_URLS = {
+  799: "https://rpc.testnet.rupaya.io",
+  97: "https://data-seed-prebsc-1-s1.binance.org:8545/" // Binance testnet RPC URL
+}

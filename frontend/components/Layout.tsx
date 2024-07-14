@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useWeb3 } from '@/contexts/Web3Context';
+import { useWeb3 } from '../contexts/Web3Context';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { account, connect, disconnect } = useWeb3();
@@ -12,7 +12,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       <header className="bg-white dark:bg-gray-800 shadow-md">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center">
-            <img src="/logo.png" alt="DApp Logo" className="h-8 w-8 mr-2" />
             <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">EVM Bridge</h1>
           </div>
           <nav className="hidden md:flex space-x-4">
