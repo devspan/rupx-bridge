@@ -1,19 +1,19 @@
 "use client"
 
 import React from 'react'
-import { Web3ReactProvider } from '@web3-react/core'
-import { Web3Provider as EthersWeb3Provider } from '@ethersproject/providers'
+import { Web3ReactProvider, Web3ReactHooks } from '@web3-react/core'
+import { MetaMask } from '@web3-react/metamask'
+import { Web3ContextProvider } from '../contexts/Web3Context'
+import { hooks, metaMask } from '../connectors/metaMask'
 
-function getLibrary(provider: any): EthersWeb3Provider {
-  const library = new EthersWeb3Provider(provider)
-  library.pollingInterval = 12000
-  return library
-}
+const connectors: [MetaMask, Web3ReactHooks][] = [
+  [metaMask, hooks]
+]
 
 const Web3Provider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
-    <Web3ReactProvider getLibrary={getLibrary}>
-      {children}
+    <Web3ReactProvider connectors={connectors}>
+      <Web3ContextProvider>{children}</Web3ContextProvider>
     </Web3ReactProvider>
   )
 }
