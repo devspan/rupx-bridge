@@ -1,70 +1,77 @@
-"use client"
+"use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import { useWeb3React } from '@web3-react/core'
-import { MetaMask } from '@web3-react/metamask'
+import React, { createContext, useContext, useState, useEffect } from 'react';
+import { ethers } from 'ethers';
 
 interface Web3ContextType {
-  account: string | null
-  chainId: number | null
-  connect: () => Promise<void>
-  disconnect: () => void
+  account: string | null;
+  chainId: number | null;
+  connect: () => Promise<void>;
+  disconnect: () => void;
 }
 
-const Web3Context = createContext<Web3ContextType | null>(null)
+const Web3Context = createContext<Web3ContextType | null>(null);
 
 export const Web3ContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { account, chainId, connector } = useWeb3React()
-  const [connecting, setConnecting] = useState(false)
+  const [account, setAccount] = useState<string | null>(null);
+  const [chainId, setChainId] = useState<number | null>(null);
 
   const connect = async () => {
-    if (connector instanceof MetaMask) {
-      setConnecting(true)
+    if (typeof window.ethereum !== 'undefined') {
       try {
-        await connector.activate()
+        await window.ethereum.request?.({ method: 'eth_requestAccounts' });
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const address = await signer.getAddress();
+        const network = await provider.getNetwork();
+        setAccount(address);
+        setChainId(network.chainId);
       } catch (error) {
-        console.error('Failed to connect:', error)
-      } finally {
-        setConnecting(false)
+        console.error('Failed to connect:', error);
       }
     } else {
-      console.error('MetaMask connector not found')
+      console.error('Ethereum object not found, do you have MetaMask installed?');
     }
-  }
+  };
 
-  const disconnect = async () => {
-    if (connector) {
-      try {
-        if (connector.deactivate) {
-          await connector.deactivate()
-        } else {
-          await connector.resetState()
-        }
-      } catch (error) {
-        console.error('Failed to disconnect:', error)
-      }
-    }
-  }
+  const disconnect = () => {
+    setAccount(null);
+    setChainId(null);
+  };
 
   useEffect(() => {
-    if (connector instanceof MetaMask) {
-      connector.connectEagerly().catch(() => {
-        console.debug('Failed to connect eagerly to metamask')
-      })
+    const handleAccountsChanged = (accounts: string[]) => {
+      setAccount(accounts[0] || null);
+    };
+
+    const handleChainChanged = (chainId: string) => {
+      setChainId(parseInt(chainId, 16));
+    };
+
+    if (typeof window.ethereum !== 'undefined' && window.ethereum.on) {
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
     }
-  }, [connector])
+
+    return () => {
+      if (typeof window.ethereum !== 'undefined' && window.ethereum.removeListener) {
+        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+        window.ethereum.removeListener('chainChanged', handleChainChanged);
+      }
+    };
+  }, []);
 
   return (
-    <Web3Context.Provider value={{ account: account ?? null, chainId: chainId ?? null, connect, disconnect }}>
+    <Web3Context.Provider value={{ account, chainId, connect, disconnect }}>
       {children}
     </Web3Context.Provider>
-  )
-}
+  );
+};
 
 export const useWeb3 = () => {
-  const context = useContext(Web3Context)
+  const context = useContext(Web3Context);
   if (!context) {
-    throw new Error('useWeb3 must be used within a Web3ContextProvider')
+    throw new Error('useWeb3 must be used within a Web3ContextProvider');
   }
-  return context
-}
+  return context;
+};

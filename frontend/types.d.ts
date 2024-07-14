@@ -1,9 +1,12 @@
-interface Window {
-    ethereum?: {
+import { ExternalProvider } from 'ethers';
+
+declare global {
+  interface Window {
+    ethereum?: ExternalProvider & {
       isMetaMask?: boolean;
-      request?: (...args: any[]) => Promise<any>;
-      on?: (...args: any[]) => void;
-      removeListener?: (...args: any[]) => void;
       autoRefreshOnNetworkChange?: boolean;
+      on?: (event: string, callback: (...args: any[]) => void) => void;
+      removeListener?: (event: string, callback: (...args: any[]) => void) => void;
     };
   }
+}

@@ -1,4 +1,5 @@
-import Web3Provider from '../components/Web3Provider'
+import Layout from '@/components/Layout'
+import { Web3ContextProvider } from '@/contexts/Web3Context'
 import './globals.css'
 
 export default function RootLayout({
@@ -9,7 +10,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <Web3Provider>{children}</Web3Provider>
+        <Web3ContextProvider>
+          <Layout>{children}</Layout>
+        </Web3ContextProvider>
       </body>
     </html>
   )
