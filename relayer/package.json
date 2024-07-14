@@ -1,0 +1,13 @@
+{
+    "name": "relayer",
+    "version": "1.0.0",
+    "main": "index.js",
+    "license": "MIT",
+    "scripts": {
+      "start": "node src/index.js"
+    },
+    "dependencies": {
+      "ethers": "^5.7.2",
+      "dotenv": "^16.0.3"
+    }
+  }

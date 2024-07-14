@@ -1,0 +1,19 @@
+{
+    "name": "rupx-bridge",
+    "version": "1.0.0",
+    "private": true,
+    "workspaces": [
+      "frontend",
+      "relayer"
+    ],
+    "scripts": {
+      "frontend": "yarn workspace frontend",
+      "relayer": "yarn workspace relayer",
+      "contracts": "forge",
+      "test": "forge test"
+    },
+    "devDependencies": {
+      "prettier": "^2.8.8",
+      "prettier-plugin-solidity": "^1.1.3"
+    }
+  }
